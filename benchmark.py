@@ -12,9 +12,11 @@ class IOFile():
     config = 'data/config.ini'
     output = 'output/solution.txt'
 
-def err_print(msg):
+def err_print(msg, original_line=None):
     print('ERROR  ' * 10)
     print(msg)
+    if original_line:
+        print(original_line)
     print('ERROR  ' * 10)
     exit(1)
 
@@ -119,58 +121,83 @@ class Output():
         self.server_history_bandwidth = []
         # self.server_history_bandwidth = [ [] for _ in range(len(client_demand)) ]
         self.max = len(cname)
+        self.curr_time_step = -1
         self.reset()
 
     def reset(self):
         self.client_outputed = [ False for _ in range(len(cname)) ]
         self.server_used_bandwidth = np.zeros(len(sname), dtype=np.int64)
         self.count = 0
+        self.curr_time_step += 1
     
     def dispatch_server(self, c_idx: int, s_idx: int, res: int):
         self.server_used_bandwidth[s_idx] += res
         if self.server_used_bandwidth[s_idx] > bandwidth[s_idx]:
             err_print(f'bandwidth overflow at server {sname[s_idx]} \t {self.count}th line time: {time_label[self.count]}')
         if qos[s_idx, c_idx] > qos_lim:
-            err_print(f'qos larger than qos limit \t edge node: {sname[s_idx]} \t client node: {cname[c_idx]} \t {self.count}th line time: {time_label[self.count]}')
+            err_print(  f'qos larger than qos limit \t edge node: {sname[s_idx]} \t client node: {cname[c_idx]} \t' \
+                        f'{self.count}th line time: {time_label[self.count]}')
     
     def read_one_line(self, line: str):
+        # client node process
         try:
             c, remain = line.strip().split(':')
-            c_idx = cname_map[c]
-            if self.client_outputed[c_idx]:
-                err_print(  f'output format error: the same client node "{c}" appears in the same time \n' \
-                            f'or output is not complete in the {self.count}th line time: {time_label[self.count]}')
-            else:
-                self.client_outputed[c_idx] = True
-                self.count += 1
-            dispatchs = remain[1: -1].split(',')
-            if len(dispatchs) == 2:
-                s, res = dispatchs
-                s_idx = sname_map[s]
-                res = int(res)
-                self.dispatch_server(c_idx, s_idx, res)
-                self.check_time_step_finished()
-                return
-            dispatchs = remain[1: -1].split('>,<')
-            for d_str in dispatchs:
-                s, res = d_str.split(',')
-                s_idx = sname_map[s]
-                res = int(res)
-                self.dispatch_server(c_idx, s_idx, res)
-                self.check_time_step_finished()
         except:
-            err_print('output format error')
+            err_print('output format error', line)
+        c_idx = cname_map.get(c)
+        if c_idx is None:
+            err_print(f'not exists client node: {c}', line)
+        if self.client_outputed[c_idx]:
+            err_print(  f'output format error: the same client node "{c}" appears in the same time \n' \
+                        f'or output is not complete in the {self.count}th line time: {time_label[self.count]} \n', line)
+        else:
+            self.client_outputed[c_idx] = True
+            self.count += 1
+        # server node process
+        dispatchs = remain[1: -1].split(',')
+        if len(dispatchs) == 1:
+            err_print('output format error', line)
+        if len(dispatchs) == 2:
+            s, res = dispatchs
+            self._process_server_res(c_idx, s, res, line)
+            if int(res) != client_demand[self.curr_time_step, c_idx]:
+                err_print(f'bandwidth of {cname[c_idx]} is not satisfied', line)
+            self._check_time_step_finished()
+            return
+        dispatchs = remain[1: -1].split('>,<')
+        if len(dispatchs) == 1:
+            err_print('output format error', line)
+        res_accum = 0
+        for d_str in dispatchs:
+            s, res = d_str.split(',')
+            self._process_server_res(c_idx, s, res, line)
+            res_accum += int(res)
+        if res_accum != client_demand[self.curr_time_step, c_idx]:
+            err_print(f'bandwidth accumulation of {cname[c_idx]} is not satisfied', line)
+        self._check_time_step_finished()
     
-    def check_time_step_finished(self):
+    def _process_server_res(self, c_idx, server_name: str, res_str: str, line: str):
+        s_idx = sname_map.get(server_name) # s_idx = sname_map[s]
+        if s_idx is None:
+            err_print(f'not exists edge node: {server_name}', line)
+        try: 
+            res = int(res_str)
+        except: 
+            err_print(f'fail in parsing bandwidth: {res}', line)
+        self.dispatch_server(c_idx, s_idx, res)
+    
+    def _check_time_step_finished(self):
         if self.count == self.max:
             self.server_history_bandwidth.append(self.server_used_bandwidth)
             self.reset()
-
+    
     def read_file(self, output_file_name: str):
         with open(output_file_name) as f:
             lines = f.read().splitlines()
         for l in lines:
             self.read_one_line(l)
+        if self.curr_time_step != len(time_label):
+            err_print('not all time step is printed')
     
     def calc_score_1(self):
         if self.count not in [0, self.max]:
