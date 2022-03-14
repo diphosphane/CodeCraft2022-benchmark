@@ -29,5 +29,5 @@ This benchmark only tested on macOS, I cannot sure it will work on other system.
 该判题器仅在macOS下测试过，我无法保证它能兼容其他系统，可能存在很多bug，仅做测试用途。
 
 # Warning 警告
-Please don't use the code in your version of submission, it's ==code plagiarism==, and Huawei will ==disqualify== us because we used the same code.  
-请勿在你提交的版本中使用本仓库的代码，这属于代码==剽窃==，而且华为在复查时会因为相同的代码而判定我们==失去资格==。
+Please don't use the code in your version of submission, it's **code plagiarism**, and Huawei will **disqualify** us because we used the same code.  
+请勿在你提交的版本中使用本仓库的代码，这属于代码**剽窃**，而且华为在复查时会因为相同的代码而判定我们**失去资格**。
