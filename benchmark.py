@@ -153,7 +153,7 @@ class Output():
                 return
             dispatchs = remain[1: -1].split('>,<')
             for d_str in dispatchs:
-                s, res = d_str[1: -1].split(',')
+                s, res = d_str.split(',')
                 s_idx = sname_map[s]
                 res = int(res)
                 self.dispatch_server(c_idx, s_idx, res)
