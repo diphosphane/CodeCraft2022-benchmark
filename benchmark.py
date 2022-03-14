@@ -195,9 +195,9 @@ class Output():
         score = server_history[idx, np.arange(len(idx))].sum()
         print(f'final score 2: {score}')
 
-def gauge_time(arg):
+def gauge_time(args):
     start_time = time.time()
-    os.system(arg)
+    os.system(' '.join(args))
     end_time = time.time()
     print(f'compile and run time: {(end_time - start_time):.4f}')
 
@@ -207,7 +207,7 @@ if __name__ == '__main__':
     if len(sys.argv) == 1:
         gauge_time('sh build_and_run.sh')
     else:
-        gauge_time(sys.argv[1])
+        gauge_time(sys.argv[1:])
     output_scorer = Output()
     output_scorer.read_file(IOFile.output)
     output_scorer.calc_score_1()
