@@ -10,7 +10,7 @@ Please put this benchmark at the same level with `build_and_run.sh`.
 
 Usage: 用法
 ```bash 
-python3 benchmark.py ['your_execution_command']
+python3 benchmark.py [your_execution_command]
 ```
 
 Some file is necessary, `./data/*` and `./output/solution.txt`. (well, it will also search at `/data/*` and `/output/solution.txt`).  
@@ -19,8 +19,8 @@ Some file is necessary, `./data/*` and `./output/solution.txt`. (well, it will a
 The argument is optional. if not provided, this benbchmark will automatically execute `sh build_and_run.sh`.  
 参数是可选项。如果不提供，则将会使用默认的`sh build_and_run.sh`命令用于编译和判题。  
 
-You can specify your execution command, e.g. `python3 benchmark.py 'java xx.jar'`. It will also works according to the file in `output/`, even the execution command does not work.  
-你可以指定你的执行命令，例如，你可以这样使用 `python3 benchmark.py 'java xx.jar'` 。即使用于执行代码的命令无法运行，本判题器依然能根据`output/`中的文件判断你的分数。
+You can specify your execution command, e.g. `python3 benchmark.py java -jar xx.jar`. It will also works according to the file in `output/`, even the execution command does not work.  
+你可以指定你的执行命令，例如，你可以这样使用 `python3 benchmark.py java -jar xx.jar` 。即使用于执行代码的命令无法运行，本判题器依然能根据`output/`中的文件判断你的分数。
 
 Score is only for reference. Because the data we used online and offline is different, I can not sure the truth of this benchmark.  
 分数仅供参考。因为线上线下使用的数据不同，因此我无法保证判题器分数的真实性。
