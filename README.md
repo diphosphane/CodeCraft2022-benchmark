@@ -9,7 +9,7 @@ Usage: 用法
 ```bash 
 python3 benchmark.py ['your_execution_command']
 ```
-e.g. `python3 benchmark.py bin/CodeCraft-2022.exe`
+e.g. `python3 benchmark.py bin/CodeCraft-2022.exe`   
 例如，你可以这样使用 `python3 benchmark.py bin/CodeCraft-2022.exe`
 
 The argument is optional.   
