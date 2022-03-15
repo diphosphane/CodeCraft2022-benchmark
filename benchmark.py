@@ -29,7 +29,7 @@ class IOFile():
 class Plot(ABC):
     id_cnt = 0
     def __init__(self) -> None:
-        plt.subplots(figsize=(15, 3))
+        plt.subplots(figsize=(8, 2))
         self.fig = plt.gcf()
         # self.fig, self.ax = plt.subplots(figsize=(15, 3))
     
@@ -43,18 +43,37 @@ class ServerSeriesPlot(Plot):  # x: time  y: many client bandwidth height. P.S. 
         self.s_name = sname[s_idx]
         self.time = None
         self.y_accu = None
+        self.labels = []
+        self.bottom = []
+        self.heights = []
     
     def add(self, label: str, y_height: int):
-        plt.bar(self.time, bottom=self.y_accu, height=y_height, label=label)
+        # plt.bar(self.time, bottom=self.y_accu, height=y_height, label=label)
+        self.labels.append(label)
+        self.heights.append(y_height)
         self.y_accu += y_height
+
+    def plot(self):
+        idx = np.argsort(self.y_accu)
+        sep_idx = int(len(idx) * 0.8)
+        for label, height in zip(self.labels, np.array(self.heights)[:, idx]):
+            plt.bar(self.time[sep_idx:], bottom=self.bottom[sep_idx:], height=height[sep_idx:], label=label)
+            self.bottom += height
+        time_str = self.time[idx].tolist()
+        time_str = [ str(i) for i in time_str]
+        for x, y, label in zip(self.time[sep_idx:], self.bottom[sep_idx:], time_str[sep_idx:]):
+            plt.text(x, y, label, ha='center', va='bottom')
+        del self.labels, self.bottom, self.heights, self.time, self.y_accu
     
     def add_client_time_series(self, matrix: np.ndarray, c_idx_list: List[int]):  # time * client  value: bandwidth
         self.time = np.arange(len(matrix))
         self.y_accu = np.zeros(len(matrix), dtype=np.int64)
+        self.bottom = np.zeros(len(matrix), dtype=np.int64)
         for i, c_idx in enumerate(c_idx_list):
             c = cname[c_idx]
             value = matrix[:, i]
             self.add(c, value)
+        self.plot()
         plt.legend()
     
     def generate_figure(self):
@@ -70,7 +89,8 @@ class ServerSeriesPlot(Plot):  # x: time  y: many client bandwidth height. P.S. 
 
 class PlotManager():
     html_template = """
-    <h1> Each Server Series </h1>
+    <h1> Each Server Time Series for Client</h1>
+    <p>only show biggest 20%% client connection</p>
     %s
 
     <script>

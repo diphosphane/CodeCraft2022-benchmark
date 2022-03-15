@@ -2,6 +2,9 @@
 A benchmark for Huawei CodeCraft 2022  
 华为CodeCraft2022 判题器 及 GUI
 
+
+![demo](img/demo.png)
+
 This benchmark requires numpy, mpld3, matplotlib   
 该判题器需要使用numpy, mpld3, matplotlib
 
