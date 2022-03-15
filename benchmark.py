@@ -397,7 +397,10 @@ class OutputAnalyser():
 
 def gauge_time(args):
     start_time = time.time()
-    os.system(' '.join(args))
+    if type(args) is str:
+        os.system(args)
+    else: 
+        os.system(' '.join(args))
     end_time = time.time()
     print(f'compile and run time: {(end_time - start_time):.4f}')
 
@@ -411,3 +414,4 @@ if __name__ == '__main__':
     analyser = OutputAnalyser()
     analyser.read_file(IOFile.output)
     analyser.output_result()
+
