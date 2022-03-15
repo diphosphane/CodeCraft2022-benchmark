@@ -1,9 +1,22 @@
-from typing import Tuple, List
 import os
 import sys
 import math
 import time
+from io import StringIO
+from typing import Tuple, List
+from abc import ABC, abstractmethod
 import numpy as np
+import mpld3
+import matplotlib.pyplot as plt
+from mpld3._server import serve as mpld3_server
+
+
+cname, sname, qos, qos_lim = None, None, None, None
+client_demand = None
+bandwidth = None
+time_label = None
+cname_map = {}
+sname_map = {}
 
 class IOFile():
     demand = 'data/demand.csv'
@@ -11,6 +24,109 @@ class IOFile():
     bandwidth = 'data/site_bandwidth.csv'
     config = 'data/config.ini'
     output = 'output/solution.txt'
+
+
+class Plot(ABC):
+    id_cnt = 0
+    def __init__(self) -> None:
+        plt.subplots(figsize=(15, 3))
+        self.fig = plt.gcf()
+        # self.fig, self.ax = plt.subplots(figsize=(15, 3))
+    
+    @abstractmethod
+    def generate_figure(self): pass
+
+
+class ServerSeriesPlot(Plot):  # x: time  y: many client bandwidth height. P.S. only for one server
+    def __init__(self, s_idx: int) -> None:
+        super().__init__()
+        self.s_name = sname[s_idx]
+        self.time = None
+        self.y_accu = None
+    
+    def add(self, label: str, y_height: int):
+        plt.bar(self.time, bottom=self.y_accu, height=y_height, label=label)
+        self.y_accu += y_height
+    
+    def add_client_time_series(self, matrix: np.ndarray, c_idx_list: List[int]):  # time * client  value: bandwidth
+        self.time = np.arange(len(matrix))
+        self.y_accu = np.zeros(len(matrix), dtype=np.int64)
+        for i, c_idx in enumerate(c_idx_list):
+            c = cname[c_idx]
+            value = matrix[:, i]
+            self.add(c, value)
+        plt.legend()
+    
+    def generate_figure(self):
+        id = Plot.id_cnt
+        Plot.id_cnt += 1
+        strio = StringIO()
+        mpld3.save_json(self.fig, strio)
+        json_str = strio.getvalue()
+        html_content = f'<p>edge server name: {self.s_name}</p>\n<div id="fig{id}"></div>\n'
+        js_content = f"j{id} = {json_str}; \n draw('fig{id}', j{id})"
+        return html_content, js_content
+        
+
+class PlotManager():
+    html_template = """
+    <h1> Each Server Series </h1>
+    %s
+
+    <script>
+    function mpld3_load_lib(url, callback){
+    var s = document.createElement('script');
+    s.src = url;
+    s.async = true;
+    s.onreadystatechange = s.onload = callback;
+    s.onerror = function(){console.warn("failed to load library " + url);};
+    document.getElementsByTagName("head")[0].appendChild(s);
+    }
+
+    function draw(id, json){
+    if(typeof(mpld3) !== "undefined" && mpld3._mpld3IsLoaded){
+        // already loaded: just create the figure
+        !function(mpld3){
+            mpld3.draw_figure(id, json);
+        }(mpld3);
+    }else if(typeof define === "function" && define.amd){
+        // require.js is available: use it to load d3/mpld3
+        require.config({paths: {d3: "https://d3js.org/d3.v5"}});
+        require(["d3"], function(d3){
+            window.d3 = d3;
+            mpld3_load_lib("https://mpld3.github.io/js/mpld3.v0.5.7.js", function(){
+                mpld3.draw_figure(id, json);
+            });
+        });
+    }else{
+        // require.js not available: dynamically load d3 & mpld3
+        mpld3_load_lib("https://d3js.org/d3.v5.js", function(){
+                mpld3_load_lib("https://mpld3.github.io/js/mpld3.v0.5.7.js", function(){
+                    mpld3.draw_figure(id, json);
+                })
+                });
+    }
+    }
+
+    %s
+    </script>
+    """
+    def __init__(self) -> None:
+        self.plots: List[Plot] = []
+    
+    def add_plot(self, plot: Plot):
+        self.plots.append(plot)
+    
+    def show_webpage(self, prev_msg: str=''):
+        web_element = prev_msg + '\n'
+        js_obj = ''
+        for p in self.plots:
+            h, j = p.generate_figure()
+            web_element += (h + '\n')
+            js_obj += (j + '\n')
+        mpld3_server(self.html_template % (web_element, js_obj))
+    
+
 
 def err_print(msg, original_line=None):
     print('ERROR  ' * 10)
@@ -24,14 +140,6 @@ def out_print(msg):
     print('RESULT  ' * 10)
     print(msg)
     print('RESULT  ' * 10)
-
-
-cname, sname, qos, qos_lim = None, None, None, None
-client_demand = None
-bandwidth = None
-time_label = None
-cname_map = {}
-sname_map = {}
 
 def read_demand() -> Tuple[List[str], List[int]]:
     fname = IOFile.demand
@@ -116,13 +224,15 @@ def get_input_data():
     bandwidth = np.array(bandwidth)
 
 
-class Output():
+class OutputAnalyser():
     def __init__(self) -> None:
         self.server_history_bandwidth = []
-        # self.server_history_bandwidth = [ [] for _ in range(len(client_demand)) ]
         self.max = len(cname)
         self.curr_time_step = -1
+        self.server_contains_client_idx = np.zeros((len(time_label), len(sname), len(cname)), dtype=bool)
+        self.server_contains_client_res = np.zeros((len(time_label), len(sname), len(cname)), dtype=np.int32)
         self.reset()
+        self.webpage_info_init()
 
     def reset(self):
         self.client_outputed = [ False for _ in range(len(cname)) ]
@@ -130,7 +240,35 @@ class Output():
         self.count = 0
         self.curr_time_step += 1
     
+    def webpage_info_init(self):
+        self.score1 = 0
+        self.score2 = 0
+        self._fig_id_list = []
+        self._fig_json_list = []
+    
+    def _analyse_server_history(self):
+        conn_matrix = self.server_contains_client_idx.sum(axis=0) > 0  # server, client
+        for s_idx, one_server_to_client in enumerate(conn_matrix):
+            if one_server_to_client.sum() == 0: continue
+            plot = ServerSeriesPlot(s_idx)
+            c_idx_avail_list = []
+            for c_idx, client in enumerate(one_server_to_client):
+                if client: c_idx_avail_list.append(c_idx)
+            plot.add_client_time_series(self.server_contains_client_res[:, s_idx, c_idx_avail_list], c_idx_avail_list)
+            self.plot_manager.add_plot(plot)
+
+    def output_result(self):
+        self.calc_score_1()
+        self.calc_score_2()
+        self.plot_manager = PlotManager()
+        self._analyse_server_history()
+        score_msg = f'<p>score1: {self.score1}</p> <p>score2: {self.score2}</p>'
+        self.plot_manager.show_webpage(score_msg)
+
+
     def dispatch_server(self, c_idx: int, s_idx: int, res: int):
+        self.server_contains_client_idx[self.curr_time_step, s_idx, c_idx] = True
+        self.server_contains_client_res[self.curr_time_step, s_idx, c_idx] += res
         self.server_used_bandwidth[s_idx] += res
         if self.server_used_bandwidth[s_idx] > bandwidth[s_idx]:
             err_print(f'bandwidth overflow at server {sname[s_idx]} \t {self.count}th line time: {time_label[self.count]}')
@@ -207,6 +345,7 @@ class Output():
         server_history = np.array(self.server_history_bandwidth)
         server_history.sort(axis=0)
         score = server_history[idx].sum()
+        self.score1 = score
         print(f'final score 1: {score}')
 
     def calc_score_2(self):
@@ -220,6 +359,7 @@ class Output():
         idx = zero_count + np.ceil(non_zero_count * 0.95).astype('int64') - 1
         server_history.sort(axis=0)
         score = server_history[idx, np.arange(len(idx))].sum()
+        self.score2 = score
         print(f'final score 2: {score}')
 
 def gauge_time(args):
@@ -235,7 +375,6 @@ if __name__ == '__main__':
         gauge_time('sh build_and_run.sh')
     else:
         gauge_time(sys.argv[1:])
-    output_scorer = Output()
-    output_scorer.read_file(IOFile.output)
-    output_scorer.calc_score_1()
-    output_scorer.calc_score_2()
+    analyser = OutputAnalyser()
+    analyser.read_file(IOFile.output)
+    analyser.output_result()

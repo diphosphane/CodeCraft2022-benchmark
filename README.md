@@ -1,9 +1,16 @@
 # CodeCraft2022-benchmark - 华为CodeCraft2022 判题器  
 A benchmark for Huawei CodeCraft 2022  
-华为CodeCraft2022 判题器
+华为CodeCraft2022 判题器 及 GUI
 
-This benchmark requires numpy.   
-该判题器需要使用numpy
+This benchmark requires numpy, mpld3, matplotlib   
+该判题器需要使用numpy, mpld3, matplotlib
+
+```bash
+python3 -m pip install -r requirement.txt
+```
+
+Now, this benchmark support **web GUI**.  
+该判题器如今支持**网页可视化**。  
 
 Please put this benchmark at the same level with `build_and_run.sh`.  
 请将本判题器放在和`build_and_run.sh`文件相同层级下。  
