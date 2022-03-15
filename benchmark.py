@@ -3,6 +3,7 @@ import sys
 import math
 import time
 from io import StringIO
+from subprocess import getoutput
 from typing import Tuple, List
 from abc import ABC, abstractmethod
 import numpy as np
@@ -246,6 +247,7 @@ def get_input_data():
 
 class OutputAnalyser():
     def __init__(self) -> None:
+        self._author = getoutput('echo $USER').strip() == 'daniel'
         self.server_history_bandwidth = []
         self.max = len(cname)
         self.curr_time_step = -1
@@ -279,10 +281,14 @@ class OutputAnalyser():
 
     def output_result(self):
         self.calc_score_1()
-        self.calc_score_2()
+        if self._author:
+            self.calc_score_2()
         self.plot_manager = PlotManager()
         self._analyse_server_history()
-        score_msg = f'<p>score1: {self.score1}</p> <p>score2: {self.score2}</p>'
+        if self._author:
+            score_msg = f'<p>score1: {self.score1}</p> <p>score2: {self.score2}</p>'
+        else:
+            score_msg = f'<p>score: {self.score1}</p>'
         self.plot_manager.show_webpage(score_msg)
 
 
@@ -312,6 +318,8 @@ class OutputAnalyser():
             self.client_outputed[c_idx] = True
             self.count += 1
         # server node process
+        if remain.strip() == '':
+            return
         dispatchs = remain[1: -1].split(',')
         if len(dispatchs) == 1:
             err_print('output format error', line)
@@ -366,7 +374,11 @@ class OutputAnalyser():
         server_history.sort(axis=0)
         score = server_history[idx].sum()
         self.score1 = score
-        print(f'final score 1: {score}')
+        if self._author:
+            print(f'final score 1: {score}')
+        else:
+            print(f'final score: {score}')
+        print(f'separate cost: {server_history[idx]}')
 
     def calc_score_2(self):
         if self.count not in [0, self.max]:
@@ -381,6 +393,7 @@ class OutputAnalyser():
         score = server_history[idx, np.arange(len(idx))].sum()
         self.score2 = score
         print(f'final score 2: {score}')
+        print(f'separate cost: {server_history[idx, np.arange(len(idx))]}')
 
 def gauge_time(args):
     start_time = time.time()
