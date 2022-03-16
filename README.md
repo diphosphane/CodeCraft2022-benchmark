@@ -41,3 +41,7 @@ This benchmark only tested on macOS, I cannot sure it will work on other system.
 # Warning 警告
 Please don't use the code in your version of submission, it's **code plagiarism**, and Huawei will **disqualify** us because we used the same code.  
 请勿在你提交的版本中使用本仓库的代码，这属于代码**剽窃**，而且华为在复查时会因为相同的代码而判定我们**失去资格**。
+
+# Pressure Test 压力测试数据
+Now, pressure test data is available at [here](https://github.com/diphosphane/CodeCraft2022-PressureGenerator).  
+压测数据生成器可以在[这里](https://github.com/diphosphane/CodeCraft2022-PressureGenerator)下载到。  

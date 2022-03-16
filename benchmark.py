@@ -298,8 +298,8 @@ class OutputAnalyser():
         self.server_used_bandwidth[s_idx] += res
         if self.server_used_bandwidth[s_idx] > bandwidth[s_idx]:
             err_print(f'bandwidth overflow at server {sname[s_idx]} \t {self.count}th line time: {time_label[self.count]}')
-        if qos[s_idx, c_idx] > qos_lim:
-            err_print(  f'qos larger than qos limit \t edge node: {sname[s_idx]} \t client node: {cname[c_idx]} \t' \
+        if qos[s_idx, c_idx] >= qos_lim:
+            err_print(  f'qos larger or equal than qos limit \t edge node: {sname[s_idx]} \t client node: {cname[c_idx]} \t' \
                         f'{self.count}th line time: {time_label[self.count]}')
     
     def read_one_line(self, line: str):
@@ -319,6 +319,8 @@ class OutputAnalyser():
             self.count += 1
         # server node process
         if remain.strip() == '':
+            if client_demand[self.curr_time_step, c_idx] != 0:
+                err_print(f'bandwidth of {cname[c_idx]} is not 0, but did not dispatch edge server')
             return
         dispatchs = remain[1: -1].split(',')
         if len(dispatchs) == 1:
@@ -342,7 +344,7 @@ class OutputAnalyser():
             err_print(f'bandwidth accumulation of {cname[c_idx]} is not satisfied', line)
         self._check_time_step_finished()
     
-    def _process_server_res(self, c_idx, server_name: str, res_str: str, line: str):
+    def _process_server_res(self, c_idx: int, server_name: str, res_str: str, line: str):
         s_idx = sname_map.get(server_name) # s_idx = sname_map[s]
         if s_idx is None:
             err_print(f'not exists edge node: {server_name}', line)
@@ -373,6 +375,7 @@ class OutputAnalyser():
         server_history = np.array(self.server_history_bandwidth)
         server_history.sort(axis=0)
         score = server_history[idx].sum()
+        print('largest:', server_history[-1])
         self.score1 = score
         if self._author:
             print(f'final score 1: {score}')
