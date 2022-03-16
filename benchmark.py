@@ -269,7 +269,7 @@ class OutputAnalyser():
         self._fig_id_list = []
         self._fig_json_list = []
     
-    def _analyse_server_history(self):
+    def _analyse_server_history_and_plot(self):
         conn_matrix = self.server_contains_client_idx.sum(axis=0) > 0  # server, client
         for s_idx, one_server_to_client in enumerate(conn_matrix):
             if one_server_to_client.sum() == 0: continue
@@ -284,13 +284,17 @@ class OutputAnalyser():
         self.calc_score_1()
         if self._author:
             self.calc_score_2()
-        self.plot_manager = PlotManager()
-        self._analyse_server_history()
         if self._author:
             score_msg = f'<p>score1: {self.score1}</p> <p>score2: {self.score2}</p>'
         else:
             score_msg = f'<p>score: {self.score1}</p>'
-        self.plot_manager.show_webpage(score_msg)
+        inp = input('generate plot through webpage? [y]/n (default is y):')
+        if inp.strip().lower() == 'y' or inp.strip() == '':
+            self.plot_manager = PlotManager()
+            self._analyse_server_history_and_plot()
+            self.plot_manager.show_webpage(score_msg)
+        elif inp.strip().lower() != 'n':
+            print('input error, will not plot figure')
 
 
     def dispatch_server(self, c_idx: int, s_idx: int, res: int):
@@ -299,11 +303,13 @@ class OutputAnalyser():
         self.server_used_bandwidth[s_idx] += res
         if self.server_used_bandwidth[s_idx] > bandwidth[s_idx]:
             err_print(  f'bandwidth overflow at server {sname[s_idx]} (index: {s_idx}) \n'\
-                        f'{self.count}th line \t time: {time_label[self.curr_time_step]}', self._curr_read_line)
+                        f'{self.count}th line \t time: {time_label[self.curr_time_step]} (index: {self.curr_time_step})',
+                        self._curr_read_line)
         if qos[s_idx, c_idx] >= qos_lim:
             err_print(  f'qos larger or equal than qos limit \n'\
                         f'server edge node: {sname[s_idx]} (index: {s_idx}) \t client node: {cname[c_idx]} (index: {c_idx}) \t' \
-                        f'{self.count}th line time: {time_label[self.curr_time_step]}', self._curr_read_line)
+                        f'{self.count}th line time: {time_label[self.curr_time_step]} (index: {self.curr_time_step})', 
+                        self._curr_read_line)
     
     def read_one_line(self, line: str):
         # client node process
