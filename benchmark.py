@@ -288,12 +288,15 @@ class OutputAnalyser():
             score_msg = f'<p>score1: {self.score1}</p> <p>score2: {self.score2}</p>'
         else:
             score_msg = f'<p>score: {self.score1}</p>'
-        inp = input('generate plot through webpage? [y]/n (default is y):')
-        if inp.strip().lower() == 'y' or inp.strip() == '':
+        inp = input('generate plot through webpage? y/[n] (default is n):')
+        if inp.strip().lower() == 'n' or inp.strip() == '':
+            return
+        elif inp.strip().lower() == 'y':
             self.plot_manager = PlotManager()
             self._analyse_server_history_and_plot()
             self.plot_manager.show_webpage(score_msg)
-        elif inp.strip().lower() != 'n':
+            return 
+        else:
             print('input error, will not plot figure')
 
 
@@ -386,7 +389,7 @@ class OutputAnalyser():
         server_history = np.array(self.server_history_bandwidth)
         server_history.sort(axis=0)
         score = server_history[idx].sum()
-        print('largest:', server_history[-1])
+        print('largest: \n', server_history[-1], '\n')
         self.score1 = score
         if self._author:
             print(f'final score 1: {score}')
