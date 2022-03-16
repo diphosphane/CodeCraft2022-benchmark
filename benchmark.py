@@ -248,6 +248,7 @@ def get_input_data():
 class OutputAnalyser():
     def __init__(self) -> None:
         self._author = getoutput('echo $USER').strip() == 'daniel'
+        self._curr_read_line = ''
         self.server_history_bandwidth = []
         self.max = len(cname)
         self.curr_time_step = -1
@@ -297,10 +298,12 @@ class OutputAnalyser():
         self.server_contains_client_res[self.curr_time_step, s_idx, c_idx] += res
         self.server_used_bandwidth[s_idx] += res
         if self.server_used_bandwidth[s_idx] > bandwidth[s_idx]:
-            err_print(f'bandwidth overflow at server {sname[s_idx]} \t {self.count}th line time: {time_label[self.count]}')
+            err_print(  f'bandwidth overflow at server {sname[s_idx]} (index: {s_idx}) \n'\
+                        f'{self.count}th line \t time: {time_label[self.curr_time_step]}', self._curr_read_line)
         if qos[s_idx, c_idx] >= qos_lim:
-            err_print(  f'qos larger or equal than qos limit \t edge node: {sname[s_idx]} \t client node: {cname[c_idx]} \t' \
-                        f'{self.count}th line time: {time_label[self.count]}')
+            err_print(  f'qos larger or equal than qos limit \n'\
+                        f'server edge node: {sname[s_idx]} (index: {s_idx}) \t client node: {cname[c_idx]} (index: {c_idx}) \t' \
+                        f'{self.count}th line time: {time_label[self.curr_time_step]}', self._curr_read_line)
     
     def read_one_line(self, line: str):
         # client node process
@@ -364,6 +367,7 @@ class OutputAnalyser():
         with open(output_file_name) as f:
             lines = f.read().splitlines()
         for l in lines:
+            self._curr_read_line = l
             self.read_one_line(l)
         if self.curr_time_step != len(time_label):
             err_print('not all time step is printed')
