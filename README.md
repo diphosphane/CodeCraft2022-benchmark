@@ -45,3 +45,6 @@ Please don't use the code in your version of submission, it's **code plagiarism*
 # Pressure Test 压力测试数据
 Now, pressure test data is available at [here](https://github.com/diphosphane/CodeCraft2022-PressureGenerator).  
 压测数据生成器可以在[这里](https://github.com/diphosphane/CodeCraft2022-PressureGenerator)下载到。  
+
+If you can pass the test, but can not pass the online test, then it would be the problem of your program, you can try to generate pressure test data, then use the data that can not pass to debug.  
+如果你可以通过判题器的测试，但却无法通过线上测试，那么你可以尝试着使用压测程序生成数据，使用无法通过测试的数据进行debug。  
