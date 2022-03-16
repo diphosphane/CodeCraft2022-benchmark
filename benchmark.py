@@ -321,6 +321,7 @@ class OutputAnalyser():
         if remain.strip() == '':
             if client_demand[self.curr_time_step, c_idx] != 0:
                 err_print(f'bandwidth of {cname[c_idx]} is not 0, but did not dispatch edge server')
+            self._check_time_step_finished()
             return
         dispatchs = remain[1: -1].split(',')
         if len(dispatchs) == 1:
