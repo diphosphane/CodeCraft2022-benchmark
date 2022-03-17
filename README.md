@@ -48,3 +48,8 @@ Now, pressure test data is available at [here](https://github.com/diphosphane/Co
 
 If you can pass the test, but can not pass the online test, then it would be the problem of your program, you can try to generate pressure test data, then use the data that can not pass to debug.  
 如果你可以通过判题器的测试，但却无法通过线上测试，那么你可以尝试着使用压测程序生成数据，使用无法通过测试的数据进行debug。  
+
+# Wechat Reward 微信打赏  
+If you find this tool helpful, please consider buy me a cup of coffee.  
+如果你觉得该工具有用，可以考虑打赏一杯咖啡。  
+![打赏](img/reward.jpg)
