@@ -1,4 +1,3 @@
-import enum
 import os
 import sys
 import math
@@ -7,7 +6,6 @@ from io import StringIO
 from subprocess import getoutput
 from typing import Tuple, List
 from abc import ABC, abstractmethod
-from more_itertools import side_effect
 import numpy as np
 import mpld3
 import matplotlib.pyplot as plt
@@ -61,17 +59,24 @@ class ServerSeriesPlot(Plot):  # x: time  y: many client bandwidth height. P.S. 
         plt.title('idle situation, number is time index')
         plt.xlabel('bandwidth')
         upper_bw = bandwidth[s_idx]
+        idx = np.argsort(-idle_series)
+        idle_series = idle_series[idx]
+        idx_series = idx_series[idx]
         used_bw = upper_bw - idle_series
         idle_perc = idle_series / upper_bw
         arg = np.argsort(used_bw)
-        plt.barh(len(arg), upper_bw, label='bandwidth upper limit')
-        plt.barh(np.arange(len(arg)), used_bw[arg], label='higher than 95%')
+        plt.barh(len(arg), upper_bw, label='bandwidth upper limit', tick_label='upper bandwidth')
+        tick_labels = [ f'95%+{i}' for i in range(1, len(arg)+1) ]
+        plt.barh(np.arange(len(arg)), used_bw[arg], label='higher than 95%', tick_label=tick_labels)
         for x, y, label, perc in zip(   used_bw[arg], np.arange(len(arg)), 
                                         list(map(lambda x: str(x), idx_series[arg].tolist())), idle_perc):
-            plt.text(x, y, label + f':  {(perc * 100):.2f}% idle', ha='left', va='center')
+            if perc > 0.7:
+                plt.text(x, y, '   ' + label + f':   {(perc * 100):.2f}% idle', ha='left', va='center')
+            else:
+                plt.text(x, y, '   ' + label + f':   {(perc * 100):.2f}% idle', ha='right', va='center')
     
     def draw_95_at_left(self, height: int, idx: str):
-        plt.barh(-1, height, label='95%')
+        plt.barh(-1, height, label='95%', tick_label='95%')
         plt.text(height, -1, str(idx), ha='left', va='center')
         plt.legend()
 
