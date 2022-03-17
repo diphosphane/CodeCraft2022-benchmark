@@ -1,3 +1,4 @@
+import enum
 import os
 import sys
 import math
@@ -248,7 +249,6 @@ def get_input_data():
 class OutputAnalyser():
     def __init__(self) -> None:
         self._author = getoutput('echo $USER').strip() == 'daniel'
-        self._curr_read_line = ''
         self.server_history_bandwidth = []
         self.max = len(cname)
         self.curr_time_step = -1
@@ -363,6 +363,9 @@ class OutputAnalyser():
             err_print(f'not exists edge node: {server_name}', line)
         try: 
             res = int(res_str)
+            if res <= 0:
+                err_print(  f'dispatch lower than 0 value at time {time_label[self._curr_line_idx]} (index: {self._curr_line_idx}), '\
+                            f'server {server_name} (index: {s_idx}), client {cname[c_idx]} (index: {c_idx})', line)
         except: 
             err_print(f'fail in parsing bandwidth: {res}', line)
         self.dispatch_server(c_idx, s_idx, res)
@@ -375,8 +378,9 @@ class OutputAnalyser():
     def read_file(self, output_file_name: str):
         with open(output_file_name) as f:
             lines = f.read().splitlines()
-        for l in lines:
+        for l_idx, l in enumerate(lines):
             self._curr_read_line = l
+            self._curr_line_idx = l_idx
             self.read_one_line(l)
         if self.curr_time_step != len(time_label):
             err_print('not all time step is printed')
