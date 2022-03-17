@@ -58,7 +58,8 @@ class ServerSeriesPlot(Plot):  # x: time  y: many client bandwidth height. P.S. 
 
     def add_idle_matrix(self, idle_series: np.ndarray, idx_series: np.ndarray, s_idx: int): # s_idx, t_idx
         plt.subplot(121)
-        plt.title('idle situation')
+        plt.title('idle situation, number is time index')
+        plt.xlabel('bandwidth')
         upper_bw = bandwidth[s_idx]
         used_bw = upper_bw - idle_series
         idle_perc = idle_series / upper_bw
@@ -82,7 +83,8 @@ class ServerSeriesPlot(Plot):  # x: time  y: many client bandwidth height. P.S. 
         time_str = [ str(i) for i in time_str]
         self.draw_95_at_left(np.array(self.heights).sum(axis=0)[end_idx-1], time_str[end_idx-1])
         plt.subplot(122)
-        plt.title('distribution that before 95%')
+        plt.title('distribution that before 95%, number is time index')
+        plt.ylabel('bandwidth')
         for label, height in zip(self.labels, np.array(self.heights)[:, idx]):
             plt.bar(self.time[sep_idx: end_idx], bottom=self.bottom[sep_idx: end_idx], height=height[sep_idx: end_idx], label=label)
             self.bottom += height
