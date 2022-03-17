@@ -7,6 +7,7 @@ from io import StringIO
 from subprocess import getoutput
 from typing import Tuple, List
 from abc import ABC, abstractmethod
+from more_itertools import side_effect
 import numpy as np
 import mpld3
 import matplotlib.pyplot as plt
@@ -38,10 +39,10 @@ class Plot(ABC):
     @abstractmethod
     def generate_figure(self): pass
 
-
 class ServerSeriesPlot(Plot):  # x: time  y: many client bandwidth height. P.S. only for one server
     def __init__(self, s_idx: int) -> None:
-        super().__init__()
+        plt.subplots(1, 2, figsize=(10, 2))
+        self.fig = plt.gcf()
         self.s_name = sname[s_idx]
         self.time = None
         self.y_accu = None
@@ -55,15 +56,37 @@ class ServerSeriesPlot(Plot):  # x: time  y: many client bandwidth height. P.S. 
         self.heights.append(y_height)
         self.y_accu += y_height
 
+    def add_idle_matrix(self, idle_series: np.ndarray, idx_series: np.ndarray, s_idx: int): # s_idx, t_idx
+        plt.subplot(121)
+        plt.title('idle situation')
+        upper_bw = bandwidth[s_idx]
+        used_bw = upper_bw - idle_series
+        idle_perc = idle_series / upper_bw
+        arg = np.argsort(used_bw)
+        plt.barh(len(arg), upper_bw, label='bandwidth upper limit')
+        plt.barh(np.arange(len(arg)), used_bw[arg], label='higher than 95%')
+        for x, y, label, perc in zip(   used_bw[arg], np.arange(len(arg)), 
+                                        list(map(lambda x: str(x), idx_series[arg].tolist())), idle_perc):
+            plt.text(x, y, label + f':  {(perc * 100):.2f}% idle', ha='left', va='center')
+    
+    def draw_95_at_left(self, height: int, idx: str):
+        plt.barh(-1, height, label='95%')
+        plt.text(height, -1, str(idx), ha='left', va='center')
+        plt.legend()
+
     def plot(self):
         idx = np.argsort(self.y_accu)
         sep_idx = int(len(idx) * 0.8)
-        for label, height in zip(self.labels, np.array(self.heights)[:, idx]):
-            plt.bar(self.time[sep_idx:], bottom=self.bottom[sep_idx:], height=height[sep_idx:], label=label)
-            self.bottom += height
+        end_idx = int(math.ceil(len(idx) * 0.95)) 
         time_str = self.time[idx].tolist()
         time_str = [ str(i) for i in time_str]
-        for x, y, label in zip(self.time[sep_idx:], self.bottom[sep_idx:], time_str[sep_idx:]):
+        self.draw_95_at_left(np.array(self.heights).sum(axis=0)[end_idx-1], time_str[end_idx-1])
+        plt.subplot(122)
+        plt.title('distribution that before 95%')
+        for label, height in zip(self.labels, np.array(self.heights)[:, idx]):
+            plt.bar(self.time[sep_idx: end_idx], bottom=self.bottom[sep_idx: end_idx], height=height[sep_idx: end_idx], label=label)
+            self.bottom += height
+        for x, y, label in zip(self.time[sep_idx: end_idx], self.bottom[sep_idx: end_idx], time_str[sep_idx: end_idx]):
             plt.text(x, y, label, ha='center', va='bottom')
         del self.labels, self.bottom, self.heights, self.time, self.y_accu
     
@@ -252,8 +275,7 @@ class OutputAnalyser():
         self.server_history_bandwidth = []
         self.max = len(cname)
         self.curr_time_step = -1
-        self.server_contains_client_idx = np.zeros((len(time_label), len(sname), len(cname)), dtype=bool)
-        self.server_contains_client_res = np.zeros((len(time_label), len(sname), len(cname)), dtype=np.int32)
+        self.record = np.zeros((len(time_label), len(sname), len(cname)), dtype=np.int32)
         self.reset()
         self.webpage_info_init()
 
@@ -270,15 +292,35 @@ class OutputAnalyser():
         self._fig_json_list = []
     
     def _analyse_server_history_and_plot(self):
-        conn_matrix = self.server_contains_client_idx.sum(axis=0) > 0  # server, client
+        conn_matrix = self.record.sum(axis=0) > 0  # server, client
         for s_idx, one_server_to_client in enumerate(conn_matrix):
             if one_server_to_client.sum() == 0: continue
             plot = ServerSeriesPlot(s_idx)
+            plot.add_idle_matrix(self.idle_matrix[s_idx], self.idle_matrix_t_idx_arr[s_idx], s_idx)
             c_idx_avail_list = []
             for c_idx, client in enumerate(one_server_to_client):
                 if client: c_idx_avail_list.append(c_idx)
-            plot.add_client_time_series(self.server_contains_client_res[:, s_idx, c_idx_avail_list], c_idx_avail_list)
+            plot.add_client_time_series(self.record[:, s_idx, c_idx_avail_list], c_idx_avail_list)
             self.plot_manager.add_plot(plot)
+    
+    def empty_analyse(self):
+        pos_96 = np.ceil(len(time_label) * 0.95 ).astype('int32')
+        res_t_for_server = self.record.sum(axis=-1).T # s_idx, t_idx
+        t_idx_arr_for_server = []
+        for t_series in res_t_for_server:
+            idxs = np.argpartition(t_series, pos_96)[pos_96:]
+            t_idx_arr_for_server.append(idxs)
+        idle_matrix = [] # s_idx, t_idx
+        for s_idx, t_idx_arr in enumerate(t_idx_arr_for_server):
+            used_bw = res_t_for_server[s_idx][t_idx_arr]
+            upper_bw = bandwidth[s_idx]
+            idle_bw = upper_bw - used_bw
+            # idle_perc = idle_bw / upper_bw
+            idle_matrix.append(idle_bw)
+        idle_matrix = np.array(idle_matrix)
+        self.idle_matrix_t_idx_arr = np.array(t_idx_arr_for_server) # s_idx, t_idx
+        self.idle_matrix = idle_matrix
+        print(f'server mean idle percent at > 95%: \n {idle_matrix.mean(axis=-1)}')
 
     def output_result(self):
         self.calc_score_1()
@@ -288,6 +330,7 @@ class OutputAnalyser():
             score_msg = f'<p>score1: {self.score1}</p> <p>score2: {self.score2}</p>'
         else:
             score_msg = f'<p>score: {self.score1}</p>'
+        self.empty_analyse()
         inp = input('generate plot through webpage? y/[n] (default is n):')
         if inp.strip().lower() == 'n' or inp.strip() == '':
             return
@@ -301,8 +344,7 @@ class OutputAnalyser():
 
 
     def dispatch_server(self, c_idx: int, s_idx: int, res: int):
-        self.server_contains_client_idx[self.curr_time_step, s_idx, c_idx] = True
-        self.server_contains_client_res[self.curr_time_step, s_idx, c_idx] += res
+        self.record[self.curr_time_step, s_idx, c_idx] += res
         self.server_used_bandwidth[s_idx] += res
         if self.server_used_bandwidth[s_idx] > bandwidth[s_idx]:
             err_print(  f'bandwidth overflow at server {sname[s_idx]} (index: {s_idx}) \n'\
@@ -393,7 +435,7 @@ class OutputAnalyser():
         server_history = np.array(self.server_history_bandwidth)
         server_history.sort(axis=0)
         score = server_history[idx].sum()
-        print('largest: \n', server_history[-1], '\n')
+        # print('largest: \n', server_history[-1], '\n')
         self.score1 = score
         if self._author:
             print(f'final score 1: {score}')
