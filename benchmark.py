@@ -327,7 +327,8 @@ class OutputAnalyser():
         idle_matrix = np.array(idle_matrix)
         self.idle_matrix_t_idx_arr = np.array(t_idx_arr_for_server) # s_idx, t_idx
         self.idle_matrix = idle_matrix
-        print(f'server mean idle percent at > 95%: \n {idle_matrix.mean(axis=-1)}')
+        idle_perc = idle_matrix.mean(axis=-1) / upper_bw
+        print(f'server mean idle percent at > 95%: \n {idle_perc}')
 
     def output_result(self):
         self.calc_score_1()
