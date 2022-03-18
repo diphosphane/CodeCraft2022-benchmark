@@ -91,7 +91,7 @@ class ServerSeriesPlot(Plot):  # x: time  y: many client bandwidth height. P.S. 
         idle = upper_bw - self.y_accu
         idle_perc = idle / upper_bw
         # self.draw_95_at_left(np.array(self.heights).sum(axis=0)[end_idx-1], time_str[end_idx-1])
-        plt.subplot(122)
+        plt.subplot(121)
         plt.title('distribution that before 95%, number is time index')
         plt.ylabel('bandwidth', labelpad=0.5)
         for label, height in zip(self.labels, np.array(self.heights)[:, idx]):   # iterate for c_idx and sorted time
@@ -102,12 +102,12 @@ class ServerSeriesPlot(Plot):  # x: time  y: many client bandwidth height. P.S. 
                 plt.text(x, y, label, ha='center', va='bottom')
             else:
                 plt.text(x, y, label, ha='center', va='top')
-        plt.legend(loc=2, bbox_to_anchor=(1.0,1.0))
+        plt.legend(loc=2, bbox_to_anchor=(0.97,1.0))
         self.plot_idle(idx, idle_perc, s_idx)
         del self.labels, self.bottom, self.heights, self.time, self.y_accu
     
     def plot_idle(self, idx: np.ndarray, idle_perc: np.ndarray, s_idx):
-        plt.subplot(121)
+        plt.subplot(122)
         plt.title('idle situation, number is time index')
         plt.xlabel('bandwidth', labelpad=0)
         my_bottom = np.zeros(len(idx), dtype=np.int64) # sorted
