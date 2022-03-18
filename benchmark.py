@@ -48,16 +48,16 @@ class ServerSeriesPlot(Plot):  # x: time  y: many client bandwidth height. P.S. 
         self.bottom = []
         self.heights = []
     
-    def add(self, label: str, y_height: int):
+    def add(self, label: str, y_height: int):  # client name, bw in every time for this client
         # plt.bar(self.time, bottom=self.y_accu, height=y_height, label=label)
-        self.labels.append(label)
-        self.heights.append(y_height)
-        self.y_accu += y_height
+        self.labels.append(label)       # list: each contains name of client
+        self.heights.append(y_height)   # c_idx, t_idx
+        self.y_accu += y_height         # t_idx, height for every time
 
     def add_idle_matrix(self, idle_series: np.ndarray, idx_series: np.ndarray, s_idx: int): # s_idx, t_idx
         plt.subplot(121)
         plt.title('idle situation, number is time index')
-        plt.xlabel('bandwidth')
+        plt.xlabel('bandwidth', labelpad=1.0)
         upper_bw = bandwidth[s_idx]
         idx = np.argsort(-idle_series)
         idle_series = idle_series[idx]
@@ -70,7 +70,7 @@ class ServerSeriesPlot(Plot):  # x: time  y: many client bandwidth height. P.S. 
         plt.barh(np.arange(len(arg)), used_bw[arg], label='higher than 95%', tick_label=tick_labels)
         for x, y, label, perc in zip(   used_bw[arg], np.arange(len(arg)), 
                                         list(map(lambda x: str(x), idx_series[arg].tolist())), idle_perc):
-            if perc > 0.7:
+            if perc > 0.35:
                 plt.text(x, y, '   ' + label + f':   {(perc * 100):.2f}% idle', ha='left', va='center')
             else:
                 plt.text(x, y, '   ' + label + f':   {(perc * 100):.2f}% idle', ha='right', va='center')
@@ -78,35 +78,68 @@ class ServerSeriesPlot(Plot):  # x: time  y: many client bandwidth height. P.S. 
     def draw_95_at_left(self, height: int, idx: str):
         plt.barh(-1, height, label='95%', tick_label='95%')
         plt.text(height, -1, str(idx), ha='left', va='center')
+        plt.yticks([])
         plt.legend()
 
-    def plot(self):
+    def plot(self, s_idx):
         idx = np.argsort(self.y_accu)
         sep_idx = int(len(idx) * 0.8)
         end_idx = int(math.ceil(len(idx) * 0.95)) 
         time_str = self.time[idx].tolist()
         time_str = [ str(i) for i in time_str]
-        self.draw_95_at_left(np.array(self.heights).sum(axis=0)[end_idx-1], time_str[end_idx-1])
+        upper_bw = bandwidth[s_idx]
+        idle = upper_bw - self.y_accu
+        idle_perc = idle / upper_bw
+        # self.draw_95_at_left(np.array(self.heights).sum(axis=0)[end_idx-1], time_str[end_idx-1])
         plt.subplot(122)
         plt.title('distribution that before 95%, number is time index')
-        plt.ylabel('bandwidth')
-        for label, height in zip(self.labels, np.array(self.heights)[:, idx]):
+        plt.ylabel('bandwidth', labelpad=0.5)
+        for label, height in zip(self.labels, np.array(self.heights)[:, idx]):   # iterate for c_idx and sorted time
             plt.bar(self.time[sep_idx: end_idx], bottom=self.bottom[sep_idx: end_idx], height=height[sep_idx: end_idx], label=label)
             self.bottom += height
         for x, y, label in zip(self.time[sep_idx: end_idx], self.bottom[sep_idx: end_idx], time_str[sep_idx: end_idx]):
-            plt.text(x, y, label, ha='center', va='bottom')
+            if y / self.bottom[end_idx-1] < 0.95:
+                plt.text(x, y, label, ha='center', va='bottom')
+            else:
+                plt.text(x, y, label, ha='center', va='top')
+        plt.legend(loc=2, bbox_to_anchor=(1.0,1.0))
+        self.plot_idle(idx, idle_perc, s_idx)
         del self.labels, self.bottom, self.heights, self.time, self.y_accu
     
-    def add_client_time_series(self, matrix: np.ndarray, c_idx_list: List[int]):  # time * client  value: bandwidth
+    def plot_idle(self, idx: np.ndarray, idle_perc: np.ndarray, s_idx):
+        plt.subplot(121)
+        plt.title('idle situation, number is time index')
+        plt.xlabel('bandwidth', labelpad=0)
+        my_bottom = np.zeros(len(idx), dtype=np.int64) # sorted
+        end_idx = int(math.ceil(len(idx) * 0.95)) 
+        for c_name, height in zip(self.labels, np.array(self.heights)[:, idx]):
+            plt.barh(self.time[end_idx-1:], height[end_idx-1:], left=my_bottom[end_idx-1:], label=c_name)
+            my_bottom += height
+        for x, y, t_idx, perc in zip(self.y_accu[idx][end_idx:], self.time[end_idx:], 
+                                        idx[end_idx:], idle_perc[idx][end_idx:]):
+            if perc > 0.35:
+                plt.text(x, y, ' ' + str(t_idx) + f': {(perc * 100):.2f}% idle', ha='left', va='center')
+            else:
+                plt.text(x, y, ' ' + str(t_idx) + f': {(perc * 100):.2f}% idle', ha='right', va='center')
+        if idle_perc[idx][end_idx-1] > 0.35:
+            plt.text(self.y_accu[idx][end_idx-1], end_idx-1, str(idx[end_idx-1]) + ': pos at 95% data', ha='left', va='center')
+        else:
+            plt.text(self.y_accu[idx][end_idx-1], end_idx-1, str(idx[end_idx-1]) + ': pos at 95% data', ha='right', va='center')
+        plt.barh(len(idx), bandwidth[s_idx], color='k', alpha=0.5)
+        plt.text(bandwidth[s_idx] / 2, len(idx), 'bandwidth upper limit', ha='center', va='center')
+        plt.yticks([])
+        plt.xticks(rotation=-15) 
+        # plt.legend()
+    
+    def add_client_time_series(self, matrix: np.ndarray, c_idx_list: List[int], s_idx: int):  # time * client  value: bandwidth
         self.time = np.arange(len(matrix))
         self.y_accu = np.zeros(len(matrix), dtype=np.int64)
         self.bottom = np.zeros(len(matrix), dtype=np.int64)
         for i, c_idx in enumerate(c_idx_list):
             c = cname[c_idx]
             value = matrix[:, i]
-            self.add(c, value)
-        self.plot()
-        plt.legend()
+            self.add(c, value)  # client name, bw in every time for this client
+        self.plot(s_idx)
     
     def generate_figure(self):
         id = Plot.id_cnt
@@ -303,11 +336,11 @@ class OutputAnalyser():
         for s_idx, one_server_to_client in enumerate(conn_matrix):
             if one_server_to_client.sum() == 0: continue
             plot = ServerSeriesPlot(s_idx)
-            plot.add_idle_matrix(self.idle_matrix[s_idx], self.idle_matrix_t_idx_arr[s_idx], s_idx)
+            # plot.add_idle_matrix(self.idle_matrix[s_idx], self.idle_matrix_t_idx_arr[s_idx], s_idx)
             c_idx_avail_list = []
             for c_idx, client in enumerate(one_server_to_client):
                 if client: c_idx_avail_list.append(c_idx)
-            plot.add_client_time_series(self.record[:, s_idx, c_idx_avail_list], c_idx_avail_list)
+            plot.add_client_time_series(self.record[:, s_idx, c_idx_avail_list], c_idx_avail_list, s_idx)
             self.plot_manager.add_plot(plot)
     
     def empty_analyse(self):
