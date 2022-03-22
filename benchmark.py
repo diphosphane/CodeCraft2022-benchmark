@@ -311,7 +311,6 @@ def get_input_data():
 
 class OutputAnalyser():
     def __init__(self) -> None:
-        self._author = getoutput('echo $USER').strip() == 'daniel'
         self.server_history_bandwidth = []
         self.max = len(cname)
         self.curr_time_step = -1
@@ -365,17 +364,15 @@ class OutputAnalyser():
 
     def output_result(self):
         self.calc_score_1()
-        if self._author:
-            self.calc_score_2()
-        if self._author:
-            score_msg = f'<p>score1: {self.score1}</p> <p>score2: {self.score2}</p>'
-        else:
-            score_msg = f'<p>score: {self.score1}</p>'
-        self.empty_analyse()
+        score_msg = f'<p>score: {self.score1}</p>'
         inp = input('generate plot through webpage? y/[n] (default is n):')
         if inp.strip().lower() == 'n' or inp.strip() == '':
             return
         elif inp.strip().lower() == 'y':
+            try: self.empty_analyse()
+            except:
+                print('your t length is too small to analyze and plot.')
+                exit(1)
             self.plot_manager = PlotManager()
             self._analyse_server_history_and_plot()
             self.plot_manager.show_webpage(score_msg)
@@ -408,7 +405,8 @@ class OutputAnalyser():
             err_print(f'not exists client node: {c}', line)
         if self.client_outputed[c_idx]:
             err_print(  f'output format error: the same client node "{c}" appears in the same time \n' \
-                        f'or output is not complete in the {self.count}th line time: {time_label[self.count]} \n', line)
+                        f'or output is not complete (some client demands 0 bandwidth, but you did not output) \n'\
+                        f'in the {self._curr_line_idx}th line, time: {time_label[self.curr_time_step]} \n', line)
         else:
             self.client_outputed[c_idx] = True
             self.count += 1
@@ -447,7 +445,7 @@ class OutputAnalyser():
         try: 
             res = int(res_str)
             if res <= 0:
-                err_print(  f'dispatch lower than 0 value at time {time_label[self._curr_line_idx]} (index: {self._curr_line_idx}), '\
+                err_print(  f'dispatch lower than 0 value at time {time_label[self.curr_time_step]} (index: {self.curr_time_step}), '\
                             f'server {server_name} (index: {s_idx}), client {cname[c_idx]} (index: {c_idx})', line)
         except: 
             err_print(f'fail in parsing bandwidth: {res}', line)
@@ -476,13 +474,12 @@ class OutputAnalyser():
         server_history = np.array(self.server_history_bandwidth)
         server_history.sort(axis=0)
         score = server_history[idx].sum()
-        # print('largest: \n', server_history[-1], '\n')
+        after_95 = server_history[idx+1:].sum(0)
+        after_95_sum = after_95.sum()
         self.score1 = score
-        if self._author:
-            print(f'final score 1: {score}')
-        else:
-            print(f'final score: {score}')
-        print(f'separate cost: {server_history[idx]}')
+        print(f'final score: {score}\n')
+        print(f'separate cost: {sorted(server_history[idx], reverse=True)}')
+        print(f'after 95 sum: {after_95_sum}\n{sorted(after_95, reverse=True)}')
 
     def calc_score_2(self):
         if self.count not in [0, self.max]:
