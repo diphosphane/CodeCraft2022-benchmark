@@ -2,6 +2,9 @@
 A benchmark for Huawei CodeCraft 2022  
 华为CodeCraft2022 判题器 及 GUI
 
+# 2nd round benchmark 复赛判题器
+Now you can test the benchmark for the 2nd round competition at [here](https://github.com/diphosphane/CodeCraft2022-benchmark-2nd-round)   
+你可以在[这个链接](https://github.com/diphosphane/CodeCraft2022-benchmark-2nd-round)测试复赛判题器。   
 
 ![demo](img/demo.png)
 
